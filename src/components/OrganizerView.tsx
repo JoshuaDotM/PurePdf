@@ -114,22 +114,93 @@ export const OrganizerView: React.FC<OrganizerViewProps> = ({
   // Empty state if no pages
   if (pages.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center max-w-2xl mx-auto">
-        <div className="w-20 h-20 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 mb-6 shadow-xl shadow-blue-500/5">
-          <UploadCloud className="w-10 h-10" />
-        </div>
-        <h2 className="text-2xl font-bold text-white mb-2">No PDF Document Loaded</h2>
-        <p className="text-sm text-slate-400 mb-8 leading-relaxed">
-          Open any PDF file to delete pages, duplicate and reorder them anywhere, or mask text with the whiteout eraser and add custom text boxes.
-        </p>
-        <div className="flex flex-col sm:flex-row items-center gap-4 justify-center">
+      <div className="flex-1 overflow-y-auto px-6 py-12 bg-slate-950">
+        <div className="max-w-4xl mx-auto flex flex-col items-center text-center">
+          {/* Hero Banner */}
+          <div className="w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 mb-6 shadow-xl shadow-blue-500/10 animate-pulse-subtle">
+            <UploadCloud className="w-8 h-8" />
+          </div>
+
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/30 text-emerald-400 text-xs font-semibold mb-4">
+            <span>✨ 100% Free Forever • No Paywalls • No Credit Card • Zero Watermarks</span>
+          </div>
+
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight mb-4">
+            The Truly Free PDF Editor. <br className="hidden sm:inline" />
+            <span className="bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-300 bg-clip-text text-transparent">
+              No Hidden Paywalls. No Limits.
+            </span>
+          </h1>
+
+          <p className="text-sm sm:text-base text-slate-400 max-w-2xl mb-8 leading-relaxed">
+            Delete, duplicate, and reorder pages. Mask text with the whiteout eraser, add custom text boxes, merge multiple documents, and split page ranges—completely free and 100% private in your browser.
+          </p>
+
           <button
             onClick={onUploadClick}
-            className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold flex items-center justify-center gap-2.5 shadow-xl shadow-blue-500/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            className="px-8 py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-base flex items-center gap-3 shadow-2xl shadow-blue-500/30 transition-all hover:scale-[1.03] active:scale-[0.98] border border-blue-400/30 mb-16"
           >
-            <UploadCloud className="w-5 h-5" />
-            <span>Open PDF Document</span>
+            <UploadCloud className="w-6 h-6" />
+            <span>Open PDF Document to Edit</span>
           </button>
+
+          {/* Feature Highlights Grid for Users & Search Crawlers */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 text-left w-full mb-16">
+            <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 hover:border-slate-700 transition-colors">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center mb-3">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-bold text-white mb-1.5">Delete, Duplicate & Reorder</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Remove unwanted pages permanently. Duplicate any page with a click and drag cards to place them in any order.
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 hover:border-slate-700 transition-colors">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center mb-3">
+                <Edit3 className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-bold text-white mb-1.5">Whiteout Eraser & Text Boxes</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Mask off sensitive text, numbers, or clauses using pure white paint. Drop new text boxes with custom fonts, colors, and sizes.
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 hover:border-slate-700 transition-colors">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mb-3">
+                <Layers className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-bold text-white mb-1.5">Merge & Split PDFs</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Combine multiple PDFs with custom insertion positions, or extract exact page ranges into a separate PDF without fees.
+              </p>
+            </div>
+          </div>
+
+          {/* Privacy & Zero Paywall FAQ Section */}
+          <div className="w-full text-left bg-slate-900/40 border border-slate-800/80 rounded-2xl p-6 sm:p-8">
+            <h2 className="text-lg font-bold text-white mb-4">Frequently Asked Questions</h2>
+            <div className="space-y-4 text-xs">
+              <div>
+                <h4 className="font-semibold text-slate-200 mb-1">Is PurePDF really free without any paywalls or credit card?</h4>
+                <p className="text-slate-400 leading-relaxed">
+                  Yes, 100% free with zero hidden paywalls. Unlike other sites that allow 2 free edits and then demand a subscription or credit card, PurePDF runs completely in your web browser. There are no server costs, so there is no reason to ever charge you.
+                </p>
+              </div>
+              <div>
+                <h4 className="font-semibold text-slate-200 mb-1">Are my confidential PDF documents safe and private?</h4>
+                <p className="text-slate-400 leading-relaxed">
+                  Completely safe. Your documents are never uploaded to any cloud server or third party. All parsing, rendering, editing, and exports happen locally inside your browser's memory.
+                </p>
+              </div>
+              <div>
+                <h4 className="font-semibold text-slate-200 mb-1">Does it add watermarks to exported documents?</h4>
+                <p className="text-slate-400 leading-relaxed">
+                  No. PurePDF will never stamp watermarks on your files. The exported PDF is clean, original vector quality.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
