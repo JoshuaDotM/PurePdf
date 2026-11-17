@@ -18,7 +18,6 @@ interface NavbarProps {
   viewMode: EditorViewMode;
   onViewModeChange: (mode: EditorViewMode) => void;
   onUploadClick: () => void;
-  onLoadSampleClick: () => void;
   onMergeClick: () => void;
   onSplitClick: () => void;
   onExportClick: () => void;
@@ -31,7 +30,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   viewMode,
   onViewModeChange,
   onUploadClick,
-  onLoadSampleClick,
   onMergeClick,
   onSplitClick,
   onExportClick,
@@ -101,16 +99,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Right Actions */}
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Sample Document quick load button */}
-        <button
-          onClick={onLoadSampleClick}
-          className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-750 border border-slate-700/80 transition-colors"
-          title="Load a pre-made 3-page agreement to test delete, duplicate, whiteout, and text tools"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-          <span>Try Sample PDF</span>
-        </button>
-
         {/* Upload Button */}
         <button
           onClick={onUploadClick}

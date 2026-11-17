@@ -16,7 +16,6 @@ import {
 } from './types';
 import { 
   loadPdfPages, 
-  createSamplePdf, 
   exportModifiedPdf, 
   downloadPdfBytes, 
   splitAndExportPdf,
@@ -38,11 +37,6 @@ export default function App() {
   const [isSplitOpen, setIsSplitOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('Loading document...');
-
-  // Auto-load sample PDF on initial load for instant interactive experience
-  useEffect(() => {
-    handleLoadSample();
-  }, []);
 
   // Load PDF from ArrayBuffer
   const handleLoadPdf = async (buffer: ArrayBuffer, fileName: string) => {
@@ -81,20 +75,6 @@ export default function App() {
     } catch (err) {
       console.error('File read error:', err);
       alert('Failed to read file from disk.');
-    }
-  };
-
-  // Load sample document
-  const handleLoadSample = async () => {
-    try {
-      setIsLoading(true);
-      setLoadingMessage('Generating sample agreement document...');
-      const sampleBuffer = await createSamplePdf();
-      await handleLoadPdf(sampleBuffer, 'Nexus_Agreement_Sample.pdf');
-    } catch (err) {
-      console.error('Failed to generate sample PDF:', err);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -297,7 +277,6 @@ export default function App() {
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         onUploadClick={() => setIsUploadOpen(true)}
-        onLoadSampleClick={handleLoadSample}
         onMergeClick={() => setIsMergeOpen(true)}
         onSplitClick={() => setIsSplitOpen(true)}
         onExportClick={() => setIsExportOpen(true)}
@@ -331,7 +310,6 @@ export default function App() {
             onAddBlankPage={handleAddBlankPage}
             onBatchDeletePages={handleBatchDeletePages}
             onUploadClick={() => setIsUploadOpen(true)}
-            onLoadSampleClick={handleLoadSample}
           />
         ) : (
           <CanvasEditorView
@@ -353,7 +331,6 @@ export default function App() {
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
         onFileSelect={handleFileSelect}
-        onLoadSample={handleLoadSample}
         isLoading={isLoading}
       />
 

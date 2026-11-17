@@ -29,7 +29,6 @@ interface OrganizerViewProps {
   onAddBlankPage: () => void;
   onBatchDeletePages: (ids: string[]) => void;
   onUploadClick: () => void;
-  onLoadSampleClick: () => void;
 }
 
 export const OrganizerView: React.FC<OrganizerViewProps> = ({
@@ -43,8 +42,7 @@ export const OrganizerView: React.FC<OrganizerViewProps> = ({
   onReorderPages,
   onAddBlankPage,
   onBatchDeletePages,
-  onUploadClick,
-  onLoadSampleClick
+  onUploadClick
 }) => {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -124,20 +122,13 @@ export const OrganizerView: React.FC<OrganizerViewProps> = ({
         <p className="text-sm text-slate-400 mb-8 leading-relaxed">
           Open any PDF file to delete pages, duplicate and reorder them anywhere, or mask text with the whiteout eraser and add custom text boxes.
         </p>
-        <div className="flex flex-col sm:flex-row items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-center gap-4 justify-center">
           <button
             onClick={onUploadClick}
-            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 transition-all"
+            className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold flex items-center justify-center gap-2.5 shadow-xl shadow-blue-500/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
             <UploadCloud className="w-5 h-5" />
-            <span>Select PDF from Computer</span>
-          </button>
-          <button
-            onClick={onLoadSampleClick}
-            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold border border-slate-700 flex items-center justify-center gap-2 transition-all"
-          >
-            <Sparkles className="w-5 h-5 text-amber-400" />
-            <span>Load Interactive Sample PDF</span>
+            <span>Open PDF Document</span>
           </button>
         </div>
       </div>
