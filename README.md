@@ -42,10 +42,10 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/JoshuaDotM/pdf-editor.git
+git clone https://github.com/JoshuaDotM/PurePdf.git
 
 # Enter project directory
-cd pdf-editor
+cd PurePdf
 
 # Install dependencies
 npm install
