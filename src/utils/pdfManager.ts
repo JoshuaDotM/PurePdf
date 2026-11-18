@@ -455,13 +455,33 @@ export async function exportModifiedPdf(
       });
     }
 
-    // 2. APPLY WHITEOUT BRUSH (Freehand whiteout strokes) & DRAWINGS
+    // 2. APPLY RECTANGLE HIGHLIGHTS (Semi-transparent vector boxes over text)
+    const rectHighlights = (pageItem.annotations.drawings || []).filter(d => d.type === 'highlighter' && d.shapeType === 'rect');
+    for (const rh of rectHighlights) {
+      if (rh.x === undefined || rh.y === undefined || rh.width === undefined || rh.height === undefined) continue;
+      const xPt = (rh.x / 100) * pW;
+      const yFromTopPt = (rh.y / 100) * pH;
+      const wPt = (rh.width / 100) * pW;
+      const hPt = (rh.height / 100) * pH;
+      const yPt = pH - (yFromTopPt + hPt);
+
+      copiedPage.drawRectangle({
+        x: xPt,
+        y: yPt,
+        width: wPt,
+        height: hPt,
+        color: hexToRgb(rh.color || '#fde047'),
+        opacity: rh.opacity ?? 0.38,
+      });
+    }
+
+    // 3. APPLY WHITEOUT BRUSH (Freehand whiteout strokes) & FREEHAND DRAWINGS / HIGHLIGHTERS
     // To ensure 100% faithful replication of freehand curves and brush strokes,
     // we render them onto an offscreen canvas and embed as a transparent high-res PNG
     const brushWhiteouts = pageItem.annotations.whiteouts.filter(w => w.type === 'brush' && w.points && w.points.length > 0);
-    const drawings = pageItem.annotations.drawings || [];
+    const brushDrawings = (pageItem.annotations.drawings || []).filter(d => d.shapeType !== 'rect' && d.points && d.points.length > 0);
 
-    if (brushWhiteouts.length > 0 || drawings.length > 0) {
+    if (brushWhiteouts.length > 0 || brushDrawings.length > 0) {
       const renderScale = 2; // high resolution for crystal clarity
       const canvas = document.createElement('canvas');
       canvas.width = pW * renderScale;
@@ -492,15 +512,18 @@ export async function exportModifiedPdf(
         }
 
         // Render drawings / highlighters / pen
-        for (const draw of drawings) {
+        for (const draw of brushDrawings) {
           if (!draw.points || draw.points.length === 0) continue;
           ctx.save();
           ctx.beginPath();
           ctx.lineCap = 'round';
           ctx.lineJoin = 'round';
           ctx.strokeStyle = draw.color || '#000000';
-          ctx.globalAlpha = draw.opacity || 1;
-          const strokePt = ((draw.strokeWidth || 3) / 595) * pW;
+          ctx.globalAlpha = draw.opacity ?? (draw.type === 'highlighter' ? 0.38 : 1);
+          if (draw.type === 'highlighter') {
+            ctx.globalCompositeOperation = 'multiply';
+          }
+          const strokePt = ((draw.strokeWidth || (draw.type === 'highlighter' ? 24 : 3)) / 595) * pW;
           ctx.lineWidth = Math.max(2, strokePt);
 
           const first = draw.points[0];

@@ -34,6 +34,23 @@ import {
 } from '../types';
 import { generateId } from '../utils/pdfManager';
 
+const HIGHLIGHTER_COLORS = [
+  { name: 'Yellow', hex: '#fde047', label: 'Classic Yellow' },
+  { name: 'Lime Green', hex: '#86efac', label: 'Neon Green' },
+  { name: 'Sky Cyan', hex: '#67e8f9', label: 'Sky Cyan' },
+  { name: 'Pastel Pink', hex: '#f472b6', label: 'Pastel Pink' },
+  { name: 'Neon Orange', hex: '#fb923c', label: 'Neon Orange' },
+  { name: 'Lavender', hex: '#c084fc', label: 'Lavender Purple' },
+];
+
+const PEN_COLORS = [
+  { name: 'Black', hex: '#000000', label: 'Black' },
+  { name: 'Dark Blue', hex: '#1d4ed8', label: 'Navy Blue' },
+  { name: 'Crimson Red', hex: '#dc2626', label: 'Crimson Red' },
+  { name: 'Forest Green', hex: '#16a34a', label: 'Forest Green' },
+  { name: 'Graphite', hex: '#475569', label: 'Graphite' },
+];
+
 interface CanvasEditorViewProps {
   page: PDFPageItem;
   pdfDocProxy: any;
@@ -92,6 +109,16 @@ export const CanvasEditorView: React.FC<CanvasEditorViewProps> = ({
   const [isBold, setIsBold] = useState<boolean>(false);
   const [isItalic, setIsItalic] = useState<boolean>(false);
   const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right'>('left');
+
+  // Highlighter settings
+  const [highlighterMode, setHighlighterMode] = useState<'rect' | 'brush'>('rect');
+  const [highlighterColor, setHighlighterColor] = useState<string>('#fde047');
+  const [highlighterWidth, setHighlighterWidth] = useState<number>(24);
+  const [highlighterOpacity, setHighlighterOpacity] = useState<number>(0.38);
+
+  // Pen settings
+  const [penColor, setPenColor] = useState<string>('#000000');
+  const [penWidth, setPenWidth] = useState<number>(3);
 
   // References
   const containerRef = useRef<HTMLDivElement>(null);
@@ -230,16 +257,20 @@ export const CanvasEditorView: React.FC<CanvasEditorViewProps> = ({
       ctx.restore();
     }
 
-    // Draw saved drawings / highlighters
+    // Draw saved drawings / freehand highlighters (rect highlights are in the DOM)
     for (const d of drawings) {
+      if (d.shapeType === 'rect') continue;
       if (!d.points || d.points.length === 0) continue;
       ctx.save();
       ctx.beginPath();
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.strokeStyle = d.color || '#000000';
-      ctx.globalAlpha = d.opacity || 1;
-      ctx.lineWidth = (d.strokeWidth || 4) * (canvas.width / 600);
+      ctx.globalAlpha = d.opacity ?? (d.type === 'highlighter' ? 0.38 : 1);
+      if (d.type === 'highlighter') {
+        ctx.globalCompositeOperation = 'multiply';
+      }
+      ctx.lineWidth = (d.strokeWidth || (d.type === 'highlighter' ? 24 : 3)) * (canvas.width / 600);
 
       const first = d.points[0];
       ctx.moveTo((first.x / 100) * canvas.width, (first.y / 100) * canvas.height);
@@ -257,10 +288,21 @@ export const CanvasEditorView: React.FC<CanvasEditorViewProps> = ({
       ctx.beginPath();
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      ctx.strokeStyle = activeTool === 'whiteout_brush' ? whiteoutColor : activeTool === 'highlighter' ? '#facc15' : '#000000';
-      ctx.globalAlpha = activeTool === 'highlighter' ? 0.35 : 1;
-      const strokeSize = activeTool === 'whiteout_brush' ? brushSize : activeTool === 'highlighter' ? 24 : 3;
-      ctx.lineWidth = strokeSize * (canvas.width / 600);
+      if (activeTool === 'whiteout_brush') {
+        ctx.strokeStyle = whiteoutColor;
+        ctx.globalAlpha = 1;
+        ctx.lineWidth = brushSize * (canvas.width / 600);
+      } else if (activeTool === 'highlighter') {
+        ctx.strokeStyle = highlighterColor;
+        ctx.globalAlpha = highlighterOpacity;
+        ctx.globalCompositeOperation = 'multiply';
+        ctx.lineWidth = highlighterWidth * (canvas.width / 600);
+      } else {
+        // activeTool === 'draw'
+        ctx.strokeStyle = penColor;
+        ctx.globalAlpha = 1;
+        ctx.lineWidth = penWidth * (canvas.width / 600);
+      }
 
       const first = currentBrushPoints[0];
       ctx.moveTo((first.x / 100) * canvas.width, (first.y / 100) * canvas.height);
@@ -271,7 +313,19 @@ export const CanvasEditorView: React.FC<CanvasEditorViewProps> = ({
       ctx.stroke();
       ctx.restore();
     }
-  }, [whiteouts, drawings, currentBrushPoints, activeTool, whiteoutColor, brushSize]);
+  }, [
+    whiteouts, 
+    drawings, 
+    currentBrushPoints, 
+    activeTool, 
+    whiteoutColor, 
+    brushSize, 
+    highlighterColor, 
+    highlighterOpacity, 
+    highlighterWidth, 
+    penColor, 
+    penWidth
+  ]);
 
   useEffect(() => {
     drawOverlayCanvas();
@@ -322,7 +376,13 @@ export const CanvasEditorView: React.FC<CanvasEditorViewProps> = ({
       setDragStart(null);
     } else if (activeTool === 'whiteout_rect') {
       setCurrentDragRect({ x, y, w: 0, h: 0 });
-    } else if (activeTool === 'whiteout_brush' || activeTool === 'draw' || activeTool === 'highlighter') {
+    } else if (activeTool === 'highlighter') {
+      if (highlighterMode === 'rect') {
+        setCurrentDragRect({ x, y, w: 0, h: 0 });
+      } else {
+        setCurrentBrushPoints([{ x, y }]);
+      }
+    } else if (activeTool === 'whiteout_brush' || activeTool === 'draw') {
       setCurrentBrushPoints([{ x, y }]);
     } else if (activeTool === 'select') {
       setSelectedId(null);
@@ -334,13 +394,17 @@ export const CanvasEditorView: React.FC<CanvasEditorViewProps> = ({
     if (!isMouseDown || !dragStart) return;
     const { x, y } = getRelativeCoords(e);
 
-    if (activeTool === 'whiteout_rect') {
+    if (activeTool === 'whiteout_rect' || (activeTool === 'highlighter' && highlighterMode === 'rect')) {
       const rx = Math.min(dragStart.x, x);
       const ry = Math.min(dragStart.y, y);
       const rw = Math.abs(x - dragStart.x);
       const rh = Math.abs(y - dragStart.y);
       setCurrentDragRect({ x: rx, y: ry, w: rw, h: rh });
-    } else if (activeTool === 'whiteout_brush' || activeTool === 'draw' || activeTool === 'highlighter') {
+    } else if (
+      activeTool === 'whiteout_brush' || 
+      activeTool === 'draw' || 
+      (activeTool === 'highlighter' && highlighterMode === 'brush')
+    ) {
       setCurrentBrushPoints(prev => [...prev, { x, y }]);
     }
   };
@@ -351,7 +415,7 @@ export const CanvasEditorView: React.FC<CanvasEditorViewProps> = ({
     setIsMouseDown(false);
 
     if (activeTool === 'whiteout_rect' && currentDragRect) {
-      if (currentDragRect.w > 1 && currentDragRect.h > 1) {
+      if (currentDragRect.w > 0.5 && currentDragRect.h > 0.5) {
         const newWhiteout: WhiteoutAnnotation = {
           id: generateId(),
           type: 'rect',
@@ -367,6 +431,26 @@ export const CanvasEditorView: React.FC<CanvasEditorViewProps> = ({
         pushHistory(textBoxes, updated, drawings);
       }
       setCurrentDragRect(null);
+    } else if (activeTool === 'highlighter' && highlighterMode === 'rect' && currentDragRect) {
+      if (currentDragRect.w > 0.5 && currentDragRect.h > 0.5) {
+        const newHighlight: DrawingAnnotation = {
+          id: generateId(),
+          type: 'highlighter',
+          shapeType: 'rect',
+          x: currentDragRect.x,
+          y: currentDragRect.y,
+          width: currentDragRect.w,
+          height: currentDragRect.h,
+          color: highlighterColor,
+          strokeWidth: highlighterWidth,
+          opacity: highlighterOpacity
+        };
+        const updated = [...drawings, newHighlight];
+        setDrawings(updated);
+        setSelectedId(newHighlight.id);
+        pushHistory(textBoxes, whiteouts, updated);
+      }
+      setCurrentDragRect(null);
     } else if (activeTool === 'whiteout_brush' && currentBrushPoints.length > 0) {
       const newBrush: WhiteoutAnnotation = {
         id: generateId(),
@@ -379,15 +463,27 @@ export const CanvasEditorView: React.FC<CanvasEditorViewProps> = ({
       setWhiteouts(updated);
       pushHistory(textBoxes, updated, drawings);
       setCurrentBrushPoints([]);
-    } else if ((activeTool === 'draw' || activeTool === 'highlighter') && currentBrushPoints.length > 0) {
-      const isHigh = activeTool === 'highlighter';
+    } else if (activeTool === 'highlighter' && highlighterMode === 'brush' && currentBrushPoints.length > 0) {
+      const newHighlight: DrawingAnnotation = {
+        id: generateId(),
+        type: 'highlighter',
+        points: currentBrushPoints,
+        color: highlighterColor,
+        strokeWidth: highlighterWidth,
+        opacity: highlighterOpacity
+      };
+      const updated = [...drawings, newHighlight];
+      setDrawings(updated);
+      pushHistory(textBoxes, whiteouts, updated);
+      setCurrentBrushPoints([]);
+    } else if (activeTool === 'draw' && currentBrushPoints.length > 0) {
       const newDraw: DrawingAnnotation = {
         id: generateId(),
-        type: isHigh ? 'highlighter' : 'pen',
+        type: 'pen',
         points: currentBrushPoints,
-        color: isHigh ? '#facc15' : textColor,
-        strokeWidth: isHigh ? 24 : 3,
-        opacity: isHigh ? 0.4 : 1
+        color: penColor,
+        strokeWidth: penWidth,
+        opacity: 1
       };
       const updated = [...drawings, newDraw];
       setDrawings(updated);
@@ -414,7 +510,7 @@ export const CanvasEditorView: React.FC<CanvasEditorViewProps> = ({
 
   // Clear all annotations on this page
   const handleClearAll = () => {
-    if (window.confirm("Clear all text boxes and whiteout eraser masks from this page?")) {
+    if (window.confirm("Clear all text boxes, whiteout masks, and highlights from this page?")) {
       setTextBoxes([]);
       setWhiteouts([]);
       setDrawings([]);
@@ -429,6 +525,14 @@ export const CanvasEditorView: React.FC<CanvasEditorViewProps> = ({
     const updated = textBoxes.map(t => t.id === selectedId ? { ...t, ...changes } : t);
     setTextBoxes(updated);
     pushHistory(updated, whiteouts, drawings);
+  };
+
+  // Update drawing / highlighter properties
+  const updateSelectedDrawing = (changes: Partial<DrawingAnnotation>) => {
+    if (!selectedId) return;
+    const updated = drawings.map(d => d.id === selectedId ? { ...d, ...changes } : d);
+    setDrawings(updated);
+    pushHistory(textBoxes, whiteouts, updated);
   };
 
   // Keyboard shortcut listener
@@ -450,6 +554,11 @@ export const CanvasEditorView: React.FC<CanvasEditorViewProps> = ({
         setActiveTool('textbox');
       } else if (e.key === 'e' || e.key === 'E') {
         setActiveTool('whiteout_rect');
+        setWhiteoutMode('rect');
+      } else if (e.key === 'h' || e.key === 'H') {
+        setActiveTool('highlighter');
+      } else if (e.key === 'p' || e.key === 'P') {
+        setActiveTool('draw');
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault();
         if (e.shiftKey) {
@@ -470,6 +579,9 @@ export const CanvasEditorView: React.FC<CanvasEditorViewProps> = ({
 
   const selectedTextBox = textBoxes.find(t => t.id === selectedId);
   const selectedWhiteout = whiteouts.find(w => w.id === selectedId);
+  const selectedDrawing = drawings.find(d => d.id === selectedId);
+  const isHighlighterSelected = selectedDrawing?.type === 'highlighter';
+  const isPenSelected = selectedDrawing?.type === 'pen';
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-950 select-none">
@@ -875,6 +987,276 @@ export const CanvasEditorView: React.FC<CanvasEditorViewProps> = ({
           </div>
         )}
 
+        {/* If Highlighter Tool is active OR a Highlighter is selected */}
+        {(activeTool === 'highlighter' || isHighlighterSelected) && (
+          <div className="flex items-center flex-wrap gap-3">
+            <span className="font-semibold text-amber-400 flex items-center gap-1.5">
+              <Highlighter className="w-3.5 h-3.5" />
+              <span>{isHighlighterSelected && activeTool === 'select' ? 'Highlight Selected:' : 'Highlighter:'}</span>
+            </span>
+
+            {/* Sub-mode: Straight Box vs Freehand Marker */}
+            {activeTool === 'highlighter' && (
+              <div className="flex items-center bg-slate-950 rounded-lg border border-slate-800 p-0.5">
+                <button
+                  onClick={() => setHighlighterMode('rect')}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs transition-colors ${
+                    highlighterMode === 'rect' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="Straight Box: Drag across text lines to create clean rectangular highlights"
+                >
+                  <Square className="w-3 h-3" />
+                  <span>Text Line Box</span>
+                </button>
+                <button
+                  onClick={() => setHighlighterMode('brush')}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs transition-colors ${
+                    highlighterMode === 'brush' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="Freehand Marker: Draw and circle text freely"
+                >
+                  <PenTool className="w-3 h-3" />
+                  <span>Freehand Marker</span>
+                </button>
+              </div>
+            )}
+
+            {/* Color Palette Chips */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400">Color:</span>
+              <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                {HIGHLIGHTER_COLORS.map(c => {
+                  const currentColor = isHighlighterSelected && selectedDrawing?.color 
+                    ? selectedDrawing.color 
+                    : highlighterColor;
+                  const isActive = currentColor.toLowerCase() === c.hex.toLowerCase();
+                  return (
+                    <button
+                      key={c.hex}
+                      onClick={() => {
+                        setHighlighterColor(c.hex);
+                        if (isHighlighterSelected) {
+                          updateSelectedDrawing({ color: c.hex });
+                        }
+                      }}
+                      className={`w-5 h-5 rounded-full transition-transform ${
+                        isActive ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-slate-900 scale-110 shadow' : 'opacity-80 hover:opacity-100 hover:scale-105'
+                      }`}
+                      style={{ backgroundColor: c.hex }}
+                      title={c.label}
+                    />
+                  );
+                })}
+                <input
+                  type="color"
+                  value={isHighlighterSelected && selectedDrawing?.color ? selectedDrawing.color : highlighterColor}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setHighlighterColor(val);
+                    if (isHighlighterSelected) {
+                      updateSelectedDrawing({ color: val });
+                    }
+                  }}
+                  className="w-5 h-5 rounded-full cursor-pointer bg-transparent border-0 ml-0.5"
+                  title="Custom highlighter color"
+                />
+              </div>
+            </div>
+
+            {/* Thickness / Stroke Size (if brush mode or selected brush) */}
+            {(highlighterMode === 'brush' || (isHighlighterSelected && !selectedDrawing?.shapeType)) && (
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400">Width:</span>
+                <div className="flex items-center bg-slate-950 rounded-lg border border-slate-800 p-0.5">
+                  {[
+                    { label: 'Fine', size: 14 },
+                    { label: 'Medium', size: 24 },
+                    { label: 'Broad', size: 36 }
+                  ].map(preset => (
+                    <button
+                      key={preset.size}
+                      onClick={() => {
+                        setHighlighterWidth(preset.size);
+                        if (isHighlighterSelected) {
+                          updateSelectedDrawing({ strokeWidth: preset.size });
+                        }
+                      }}
+                      className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                        (isHighlighterSelected && selectedDrawing?.strokeWidth ? selectedDrawing.strokeWidth : highlighterWidth) === preset.size
+                          ? 'bg-amber-500 text-slate-950 font-bold'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="range"
+                  min="8"
+                  max="48"
+                  value={isHighlighterSelected && selectedDrawing?.strokeWidth ? selectedDrawing.strokeWidth : highlighterWidth}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setHighlighterWidth(val);
+                    if (isHighlighterSelected) {
+                      updateSelectedDrawing({ strokeWidth: val });
+                    }
+                  }}
+                  className="w-16 accent-amber-500"
+                  title="Adjust stroke thickness"
+                />
+                <span className="font-mono text-slate-300 min-w-[28px] text-right">
+                  {isHighlighterSelected && selectedDrawing?.strokeWidth ? selectedDrawing.strokeWidth : highlighterWidth}px
+                </span>
+              </div>
+            )}
+
+            {/* Opacity Presets */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400">Intensity:</span>
+              <div className="flex items-center bg-slate-950 rounded-lg border border-slate-800 p-0.5">
+                {[
+                  { label: 'Soft', val: 0.25 },
+                  { label: 'Balanced', val: 0.38 },
+                  { label: 'Vivid', val: 0.60 }
+                ].map(op => {
+                  const currentOp = isHighlighterSelected && selectedDrawing?.opacity !== undefined 
+                    ? selectedDrawing.opacity 
+                    : highlighterOpacity;
+                  const isMatch = Math.abs(currentOp - op.val) < 0.05;
+                  return (
+                    <button
+                      key={op.label}
+                      onClick={() => {
+                        setHighlighterOpacity(op.val);
+                        if (isHighlighterSelected) {
+                          updateSelectedDrawing({ opacity: op.val });
+                        }
+                      }}
+                      className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                        isMatch
+                          ? 'bg-amber-500 text-slate-950 font-bold'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {op.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Helpful tip */}
+            {activeTool === 'highlighter' && (
+              <span className="hidden xl:inline-block text-[11px] text-amber-300/70 bg-amber-950/30 border border-amber-500/20 px-2 py-0.5 rounded ml-auto">
+                {highlighterMode === 'rect' ? '💡 Click & drag across any text to draw straight highlight boxes' : '💡 Draw freehand markers with smooth semi-transparent ink'}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* If Pen / Draw tool is active OR a Pen drawing is selected */}
+        {(activeTool === 'draw' || isPenSelected) && (
+          <div className="flex items-center flex-wrap gap-3">
+            <span className="font-semibold text-blue-400 flex items-center gap-1.5">
+              <PenTool className="w-3.5 h-3.5" />
+              <span>Pen / Sign:</span>
+            </span>
+
+            {/* Pen Color Palette */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400">Ink Color:</span>
+              <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                {PEN_COLORS.map(c => {
+                  const currentColor = isPenSelected && selectedDrawing?.color ? selectedDrawing.color : penColor;
+                  const isActive = currentColor.toLowerCase() === c.hex.toLowerCase();
+                  return (
+                    <button
+                      key={c.hex}
+                      onClick={() => {
+                        setPenColor(c.hex);
+                        if (isPenSelected) {
+                          updateSelectedDrawing({ color: c.hex });
+                        }
+                      }}
+                      className={`w-5 h-5 rounded-full transition-transform ${
+                        isActive ? 'ring-2 ring-blue-400 ring-offset-1 ring-offset-slate-900 scale-110 shadow' : 'opacity-80 hover:opacity-100 hover:scale-105'
+                      }`}
+                      style={{ backgroundColor: c.hex }}
+                      title={c.label}
+                    />
+                  );
+                })}
+                <input
+                  type="color"
+                  value={isPenSelected && selectedDrawing?.color ? selectedDrawing.color : penColor}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setPenColor(val);
+                    if (isPenSelected) {
+                      updateSelectedDrawing({ color: val });
+                    }
+                  }}
+                  className="w-5 h-5 rounded-full cursor-pointer bg-transparent border-0 ml-0.5"
+                  title="Custom pen ink color"
+                />
+              </div>
+            </div>
+
+            {/* Stroke Width */}
+            <div className="flex items-center gap-2">
+              <span className="text-slate-400">Nib Size:</span>
+              <div className="flex items-center bg-slate-950 rounded-lg border border-slate-800 p-0.5">
+                {[
+                  { label: 'Fine (2px)', size: 2 },
+                  { label: 'Medium (4px)', size: 4 },
+                  { label: 'Broad (8px)', size: 8 }
+                ].map(preset => (
+                  <button
+                    key={preset.size}
+                    onClick={() => {
+                      setPenWidth(preset.size);
+                      if (isPenSelected) {
+                        updateSelectedDrawing({ strokeWidth: preset.size });
+                      }
+                    }}
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                      (isPenSelected && selectedDrawing?.strokeWidth ? selectedDrawing.strokeWidth : penWidth) === preset.size
+                        ? 'bg-blue-600 text-white font-bold'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="range"
+                min="1"
+                max="16"
+                value={isPenSelected && selectedDrawing?.strokeWidth ? selectedDrawing.strokeWidth : penWidth}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setPenWidth(val);
+                  if (isPenSelected) {
+                    updateSelectedDrawing({ strokeWidth: val });
+                  }
+                }}
+                className="w-16 accent-blue-500"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* If Select tool is active and nothing is selected */}
+        {activeTool === 'select' && !selectedId && (
+          <div className="flex items-center gap-2 text-slate-400">
+            <MousePointer className="w-3.5 h-3.5 text-blue-400" />
+            <span>Select mode: Click on any text box, whiteout mask, or highlight on the page to adjust or delete it.</span>
+          </div>
+        )}
+
         {/* Selected Annotation Actions */}
         {selectedId && (
           <div className="flex items-center gap-2 ml-auto">
@@ -900,9 +1282,9 @@ export const CanvasEditorView: React.FC<CanvasEditorViewProps> = ({
         <div 
           className="relative shadow-2xl transition-all duration-100 ease-out border border-slate-800 bg-white"
           style={{
-            cursor: activeTool === 'whiteout_rect' 
+            cursor: (activeTool === 'whiteout_rect' || (activeTool === 'highlighter' && highlighterMode === 'rect')) 
               ? 'crosshair' 
-              : activeTool === 'whiteout_brush' || activeTool === 'draw' || activeTool === 'highlighter' 
+              : (activeTool === 'whiteout_brush' || activeTool === 'draw' || (activeTool === 'highlighter' && highlighterMode === 'brush')) 
                 ? 'crosshair' 
                 : activeTool === 'textbox' 
                   ? 'text' 
@@ -952,16 +1334,65 @@ export const CanvasEditorView: React.FC<CanvasEditorViewProps> = ({
               );
             })}
 
-            {/* Render Active Dragging Whiteout Rectangle Preview */}
+            {/* Render Saved Rectangle Highlights */}
+            {drawings.filter(d => d.type === 'highlighter' && d.shapeType === 'rect').map(d => {
+              const isSelected = selectedId === d.id;
+              return (
+                <div
+                  key={d.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedId(d.id);
+                  }}
+                  className={`absolute annotation-interactive group transition-all rounded-[2px] ${
+                    isSelected ? 'ring-2 ring-amber-400 shadow-md' : 'hover:ring-1 hover:ring-amber-300/60'
+                  }`}
+                  style={{
+                    left: `${d.x}%`,
+                    top: `${d.y}%`,
+                    width: `${d.width}%`,
+                    height: `${d.height}%`,
+                    backgroundColor: d.color || '#fde047',
+                    opacity: d.opacity ?? 0.38,
+                    mixBlendMode: 'multiply',
+                    cursor: activeTool === 'select' ? 'pointer' : 'default'
+                  }}
+                  title="Highlighted text"
+                >
+                  {/* Label when selected */}
+                  {isSelected && (
+                    <div className="absolute -top-5 left-0 bg-amber-500 text-slate-950 text-[9px] font-bold px-1.5 py-0.5 rounded shadow flex items-center gap-1 pointer-events-auto">
+                      <span>Highlight</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteSelected();
+                        }}
+                        className="hover:text-red-950 font-black ml-1 text-xs"
+                        title="Delete this highlight"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Render Active Dragging Rectangle Preview */}
             {currentDragRect && (
               <div
-                className="absolute border-2 border-dashed border-rose-500 pointer-events-none"
+                className={`absolute border-2 border-dashed pointer-events-none rounded-[2px] ${
+                  activeTool === 'highlighter' ? 'border-amber-400' : 'border-rose-500'
+                }`}
                 style={{
                   left: `${currentDragRect.x}%`,
                   top: `${currentDragRect.y}%`,
                   width: `${currentDragRect.w}%`,
                   height: `${currentDragRect.h}%`,
-                  backgroundColor: `${whiteoutColor}CC`
+                  backgroundColor: activeTool === 'highlighter' ? highlighterColor : `${whiteoutColor}CC`,
+                  opacity: activeTool === 'highlighter' ? highlighterOpacity : 0.85,
+                  mixBlendMode: activeTool === 'highlighter' ? 'multiply' : 'normal'
                 }}
               />
             )}
